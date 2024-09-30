@@ -1,3 +1,3 @@
-package uk.co.agiledan.chordHelper;
+package uk.co.agiledan.chordHelper.ApiResponses;
 
 public record Error(String error) implements ApiResponse{ }
