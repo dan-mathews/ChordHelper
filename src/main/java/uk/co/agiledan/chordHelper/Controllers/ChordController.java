@@ -2,6 +2,7 @@ package uk.co.agiledan.chordHelper.Controllers;
 
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,7 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 import uk.co.agiledan.chordHelper.ApiResponses.ApiResponse;
 import uk.co.agiledan.chordHelper.ApiResponses.ChordNotes;
 import uk.co.agiledan.chordHelper.ApiResponses.Error;
+import uk.co.agiledan.chordHelper.DTOs.AccidentalInterface;
 import uk.co.agiledan.chordHelper.DTOs.ChordInterval;
+import uk.co.agiledan.chordHelper.Factories.AccidentalInterfaceFactory;
+import uk.co.agiledan.chordHelper.Factories.NoteLetterFactory;
 import uk.co.agiledan.chordHelper.DTOs.NoteLetter;
 
 @RestController
@@ -82,28 +86,59 @@ public class ChordController
 		@RequestParam(defaultValue = "major") String chord
 	)
 	{
-		NoteLetter rootNoteLetter = NOTE_LETTERS_BY_LETTER.get(root.toUpperCase());
+		String rootLetter = root.substring(0, 1);
+		NoteLetter rootNoteLetter = NOTE_LETTERS_BY_LETTER.get(rootLetter.toUpperCase());
 
 		if (rootNoteLetter == null)
 		{
+			Set<String> validNoteLetters = NOTE_LETTERS_BY_LETTER.keySet();
+
 			return ResponseEntity
 				.unprocessableEntity()
-				.body(new Error("invalid root note given"));
+				.body(new Error("root note must start with one of: " + String.join(", ", validNoteLetters)));
+		}
+
+		if (root.length() > 2)
+		{
+			return ResponseEntity
+				.unprocessableEntity()
+				.body(new Error("root note cannot be more than two characters"));
+		}
+
+		if (root.length() == 2)
+		{
+			String accidentalString = root.substring(1, 2);
+
+			AccidentalInterfaceFactory accidentalInterfaceFactory = new AccidentalInterfaceFactory();
+			AccidentalInterface accidental = accidentalInterfaceFactory.build(accidentalString);
+
+			if (accidental == null)
+			{
+				return ResponseEntity
+					.unprocessableEntity()
+					.body(new Error("root note accidental not recognised"));
+			}
+
+			NoteLetterFactory noteLetterFactory = new NoteLetterFactory();
+			rootNoteLetter = noteLetterFactory.build(rootNoteLetter, accidental);
 		}
 
 		ChordInterval[] chordPattern = CHORD_PATTERN_BY_LABEL.get(chord);
 
 		if (chordPattern == null)
 		{
+			Set<String> validChords = CHORD_PATTERN_BY_LABEL.keySet();
+
 			return ResponseEntity
 				.unprocessableEntity()
-				.body(new Error("chord was not recognised"));
+				.body(new Error("chord must be one of: " + String.join(", ", validChords)));
 		}
 
 		ArrayList<String> chordNotes = new ArrayList<>();
 
 		for (ChordInterval interval : chordPattern)
 		{
+			//TODO move to NoteLetterFactory
 			// First, calculate the letter to add to the chord notes.
 			int index = rootNoteLetter.index() + interval.letterInterval();
 			int boundedIndex = index % NOTE_LETTERS_BY_INDEX.size();
@@ -121,6 +156,7 @@ public class ChordController
 				semitoneDiff = semitoneDiff - 12;
 			}
 
+			// TODO move somewhere else
 			String accidentalString = "";
 			if (semitoneDiff > 0)
 			{
