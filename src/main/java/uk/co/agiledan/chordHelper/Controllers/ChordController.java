@@ -117,13 +117,21 @@ public class ChordController
 
 			// Then, calculate the accidental adjustment required on the letter we're adding.
 			int requiredSemitonePosition = rootNoteLetter.semitonePosition() + interval.semitoneInterval();
+			// This is important in the case of large intervals like new ChordInterval(7, 23)
+			// which should be shown as Gb with a root note of G,
+			// but without this line would be A with many sharps:
 			int boundedRequiredSemitonePosition = requiredSemitonePosition % 12;
-			// The issue is that A is both 0 and 12, so Ab looks 11 semitones sharp from 0,
-			// when really it's 1 semitone flat from 12.
+			// Because of the necessary mod 12, we have to make some adjustments:
+			// - Ab (e.g. in Db mj), resolving to 11, looks 11 semitones sharp from A (0) when really it's 1 semitone flat
+			// - G## (e.g. in E# mj) (resolving to 0 after the mod 12) looks 10 semitones flat from G (10) when really it's 2 semitones sharp
 			int semitoneDiff = boundedRequiredSemitonePosition - noteLetterToAdd.semitonePosition();
 			if (semitoneDiff > 6)
 			{
-				semitoneDiff = semitoneDiff - 12;
+				semitoneDiff -= 12;
+			}
+			else if (semitoneDiff < -6)
+			{
+				semitoneDiff += 12;
 			}
 
 			Note note = new Note(noteLetterToAdd, semitoneDiff);
