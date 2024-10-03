@@ -14,6 +14,7 @@ import uk.co.agiledan.chordHelper.ApiResponses.ChordNotes;
 import uk.co.agiledan.chordHelper.ApiResponses.Error;
 import uk.co.agiledan.chordHelper.DTOs.AccidentalInterface;
 import uk.co.agiledan.chordHelper.DTOs.ChordInterval;
+import uk.co.agiledan.chordHelper.DTOs.Note;
 import uk.co.agiledan.chordHelper.Factories.AccidentalInterfaceFactory;
 import uk.co.agiledan.chordHelper.Factories.NoteLetterFactory;
 import uk.co.agiledan.chordHelper.DTOs.NoteLetter;
@@ -21,36 +22,6 @@ import uk.co.agiledan.chordHelper.DTOs.NoteLetter;
 @RestController
 public class ChordController
 {
-	private static final NoteLetter NOTE_A = new NoteLetter("A", 0, 0);
-	private static final NoteLetter NOTE_B = new NoteLetter("B", 1, 2);
-	private static final NoteLetter NOTE_C = new NoteLetter("C", 2, 3);
-	private static final NoteLetter NOTE_D = new NoteLetter("D", 3, 5);
-	private static final NoteLetter NOTE_E = new NoteLetter("E", 4, 7);
-	private static final NoteLetter NOTE_F = new NoteLetter("F", 5, 8);
-	private static final NoteLetter NOTE_G = new NoteLetter("G", 6, 10);
-
-	// Map for lookup by note letter
-	private static final Map<String, NoteLetter> NOTE_LETTERS_BY_LETTER = Map.of(
-		"A", NOTE_A,
-		"B", NOTE_B,
-		"C", NOTE_C,
-		"D", NOTE_D,
-		"E", NOTE_E,
-		"F", NOTE_F,
-		"G", NOTE_G
-	);
-
-	// Map for lookup by index (using the same NoteLetter constants)
-	private static final Map<Integer, NoteLetter> NOTE_LETTERS_BY_INDEX = Map.of(
-		NOTE_A.index(), NOTE_A,
-		NOTE_B.index(), NOTE_B,
-		NOTE_C.index(), NOTE_C,
-		NOTE_D.index(), NOTE_D,
-		NOTE_E.index(), NOTE_E,
-		NOTE_F.index(), NOTE_F,
-		NOTE_G.index(), NOTE_G
-	);
-
 	// It's important to identify the letter and then separately the semitone/midi interval.
 	// Even with triple sharps etc, the letters of a major chord will always be 2 apart.
 	// Each interval needs to contain both the letter interval and the semitone interval (integer notation)
@@ -87,11 +58,11 @@ public class ChordController
 	)
 	{
 		String rootLetter = root.substring(0, 1);
-		NoteLetter rootNoteLetter = NOTE_LETTERS_BY_LETTER.get(rootLetter.toUpperCase());
+		NoteLetter rootNoteLetter = NoteLetter.NOTE_LETTERS_BY_LETTER.get(rootLetter.toUpperCase());
 
 		if (rootNoteLetter == null)
 		{
-			Set<String> validNoteLetters = NOTE_LETTERS_BY_LETTER.keySet();
+			Set<String> validNoteLetters = NoteLetter.NOTE_LETTERS_BY_LETTER.keySet();
 
 			return ResponseEntity
 				.unprocessableEntity()
@@ -141,9 +112,8 @@ public class ChordController
 			//TODO move to NoteLetterFactory
 			// First, calculate the letter to add to the chord notes.
 			int index = rootNoteLetter.index() + interval.letterInterval();
-			int boundedIndex = index % NOTE_LETTERS_BY_INDEX.size();
-			NoteLetter noteLetterToAdd = NOTE_LETTERS_BY_INDEX.get(boundedIndex);
-			String letterToAdd = noteLetterToAdd.letter();
+			int boundedIndex = index % NoteLetter.NOTE_LETTERS_BY_INDEX.size();
+			NoteLetter noteLetterToAdd = NoteLetter.NOTE_LETTERS_BY_INDEX.get(boundedIndex);
 
 			// Then, calculate the accidental adjustment required on the letter we're adding.
 			int requiredSemitonePosition = rootNoteLetter.semitonePosition() + interval.semitoneInterval();
@@ -156,18 +126,9 @@ public class ChordController
 				semitoneDiff = semitoneDiff - 12;
 			}
 
-			// TODO move somewhere else
-			String accidentalString = "";
-			if (semitoneDiff > 0)
-			{
-				accidentalString += "♯".repeat(semitoneDiff);
-			}
-			if (semitoneDiff < 0)
-			{
-				accidentalString += "♭".repeat(Math.abs(semitoneDiff));
-			}
+			Note note = new Note(noteLetterToAdd, semitoneDiff);
 
-			chordNotes.add(letterToAdd + accidentalString);
+			chordNotes.add(note.toString());
 		}
 
 		return ResponseEntity
